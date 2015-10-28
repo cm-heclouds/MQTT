@@ -1,0 +1,15 @@
+set (MQTT_SOURCE mqtt.c mqtt_buffer.c)
+
+if(WIN32)
+  list(APPEND MQTT_SOURCE mqtt.def)
+endif()
+
+if(NOT MSVC)
+  set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fPIC")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FALGS_DEBUG} -fPIC")
+  set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -fPIC")
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fPIC")
+endif()
+
+add_library(mqtt SHARED ${MQTT_SOURCE})
+

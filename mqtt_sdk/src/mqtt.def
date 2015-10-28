@@ -1,0 +1,38 @@
+LIBRARY mqtt
+
+EXPORTS
+	Mqtt_InitContext
+	Mqtt_DestroyContext
+	Mqtt_RecvPkt
+	Mqtt_SendPkt
+	Mqtt_PackConnectPkt
+	Mqtt_PackPublishPkt
+	Mqtt_SetPktDup
+	Mqtt_PackSubscribePkt
+	Mqtt_AppendSubscribeTopic
+	Mqtt_PackUnsubscribePkt
+	Mqtt_AppendUnsubscribeTopic
+	Mqtt_PackPingReqPkt
+	Mqtt_PackDisconnectPkt
+
+	Mqtt_PackCmdRetPkt
+	Mqtt_PackDataPointStart
+	Mqtt_AppendDPInt
+	Mqtt_AppendDPString
+	Mqtt_AppendDPDouble
+	Mqtt_AppendDPStartObject
+	Mqtt_AppendDPSubvalueInt
+	Mqtt_AppendDPSubvalueString
+	Mqtt_AppendDPSubvalueDouble
+	Mqtt_AppendDPStartSubobject
+	Mqtt_AppendDPFinishSubobject
+	Mqtt_AppendDPFinishObject
+	Mqtt_PackDataPointFinish
+	Mqtt_PackDataPointByBinary
+
+	MqttBuffer_Init
+	MqttBuffer_Destroy
+	MqttBuffer_Reset
+	MqttBuffer_AllocExtent
+	MqttBuffer_Append
+	MqttBuffer_AppendExtent
