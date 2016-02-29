@@ -183,7 +183,8 @@ static int MqttSample_HandleSubAck(void *arg, uint16_t pkt_id, const char *codes
     uint32_t i;
     printf("Recv the subscribe ack, packet id is %d, return code count is %d:.\n", pkt_id, count);
     for(i = 0; i < count; ++i) {
-        printf("   code%d=%02x\n", i, codes[i]);
+        unsigned int code = ((unsigned char*)codes)[i];
+        printf("   code%d=%02x\n", i, code);
     }
 
     return 0;
@@ -305,7 +306,7 @@ static int MqttSample_CmdPublish(struct MqttSampleContext *ctx)
     ts = (int64_t)time(NULL) * 1000;
 
     err |= Mqtt_PackDataPointStart(ctx->mqttbuf, 1, MQTT_QOS_LEVEL2, 0, 1);
-    err |= Mqtt_AppendDPStartObject(ctx->mqttbuf, "dsid", ts);
+    err |= Mqtt_AppendDPStartObject(ctx->mqttbuf, "test-1", ts);
     err |= Mqtt_AppendDPSubvalueInt(ctx->mqttbuf, "subvalue", 23);
     err |= Mqtt_AppendDPSubvalueDouble(ctx->mqttbuf, "sub2", 23.167);
     err |= Mqtt_AppendDPSubvalueString(ctx->mqttbuf, "str3", "strvalue");
@@ -322,16 +323,18 @@ static int MqttSample_CmdPublish(struct MqttSampleContext *ctx)
 static int MqttSample_CmdSubscribe(struct MqttSampleContext *ctx)
 {
     int err;
-    err = Mqtt_PackSubscribePkt(ctx->mqttbuf, 1, "433223/Bs04OCJioNgpmvjRphRak15j7Z8=/45523/die", MQTT_QOS_LEVEL1);
+    char topic[1024];
+    sprintf(topic, "%s/%s/45523/test-1", ctx->proid, ctx->apikey);
+    err = Mqtt_PackSubscribePkt(ctx->mqttbuf, 11, topic, MQTT_QOS_LEVEL1);
     if(err != MQTTERR_NOERROR) {
         printf("Critical bug: failed to pack the subscribe packet.\n");
         return -1;
     }
 
-    /* err = Mqtt_AppendSubscribeTopic(ctx->mqttbuf, "433223/Bs04OCJioNgpmvjRphRak15j7Z8=/25267/test-2", MQTT_QOS_LEVEL2); */
-    if(err != MQTTERR_NOERROR) {
-        printf("Critical bug: failed to append the topic to the "
-               "subscribe packet.\n");
+    sprintf(topic, "%s/%s/45523/test-2", ctx->proid, ctx->apikey);
+    err = Mqtt_AppendSubscribeTopic(ctx->mqttbuf, topic, MQTT_QOS_LEVEL1);
+    if (err != MQTTERR_NOERROR) {
+        printf("Critical bug: failed to pack the subscribe packet.\n");
         return -1;
     }
 
@@ -341,13 +344,15 @@ static int MqttSample_CmdSubscribe(struct MqttSampleContext *ctx)
 static int MqttSample_CmdUnsubscribe(struct MqttSampleContext *ctx)
 {
     int err;
-    err = Mqtt_PackUnsubscribePkt(ctx->mqttbuf, 11, "433223/Bs04OCJioNgpmvjRphRak15j7Z8=/25267/test-1");
+    char topic[1024];
+
+    sprintf(topic, "45523/test-1");
+    err = Mqtt_PackUnsubscribePkt(ctx->mqttbuf, 11, topic);
     if(err != MQTTERR_NOERROR) {
         printf("Critical bug: failed to pack the unsubscribe packet.\n");
         return -1;
     }
 
-    err = Mqtt_AppendUnsubscribeTopic(ctx->mqttbuf, "433223/Bs04OCJioNgpmvjRphRak15j7Z8=/25267/test-1");
     if(err != MQTTERR_NOERROR) {
         printf("Critical bug: failed to append the topic to the "
                "unsubscribe packet.\n");
@@ -516,11 +521,11 @@ static int MqttSample_Init(struct MqttSampleContext *ctx)
 
     ctx->sendedbytes = -1;
     ctx->mqttfd = -1;
-    ctx->host = "183.230.40.39";
+    ctx->host = "192.168.200.218";
     ctx->port = 6002;
-    ctx->proid = "25343";
-    ctx->devid = "284198";
-    ctx->apikey = "HCawppv7FpL6S5F4uCNazF5NufYA";
+    ctx->proid = "433223";
+    ctx->devid = "45523";
+    ctx->apikey = "Bs04OCJioNgpmvjRphRak15j7Z8=";
 
 
     err = Mqtt_InitContext(ctx->mqttctx, 1 << 20);
