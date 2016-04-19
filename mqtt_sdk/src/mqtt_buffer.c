@@ -29,6 +29,8 @@ void MqttBuffer_Reset(struct MqttBuffer *buf)
     for(i = 0; i < buf->alloc_count; ++i) {
         free(buf->allocations[i]);
     }
+    
+    free(buf->allocations);
 
     MqttBuffer_Init(buf);
 }
