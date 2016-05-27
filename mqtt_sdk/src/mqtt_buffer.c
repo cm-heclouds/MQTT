@@ -38,10 +38,11 @@ void MqttBuffer_Reset(struct MqttBuffer *buf)
 struct MqttExtent *MqttBuffer_AllocExtent(struct MqttBuffer *buf, uint32_t bytes)
 {
     struct MqttExtent *ext;
-
-    bytes += sizeof(struct MqttExtent);
-
-    if(buf->available_bytes < bytes) {
+    uint32_t aligned_bytes = bytes + sizeof(struct MqttExtent);
+    aligned_bytes = aligned_bytes + (MQTT_DEFAULT_ALIGNMENT -
+        (aligned_bytes % MQTT_DEFAULT_ALIGNMENT)) % MQTT_DEFAULT_ALIGNMENT;
+    
+    if(buf->available_bytes < aligned_bytes) {
         uint32_t alloc_bytes;
         char *chunk;
 
@@ -60,7 +61,7 @@ struct MqttExtent *MqttBuffer_AllocExtent(struct MqttBuffer *buf, uint32_t bytes
             buf->allocations = tmp;
         }
 
-        alloc_bytes = bytes < MQTT_MIN_EXTENT_SIZE ? MQTT_MIN_EXTENT_SIZE : bytes;
+        alloc_bytes = aligned_bytes < MQTT_MIN_EXTENT_SIZE ? MQTT_MIN_EXTENT_SIZE : aligned_bytes;
         chunk = (char*)malloc(alloc_bytes);
         if(NULL == chunk) {
             return NULL;
@@ -76,12 +77,12 @@ struct MqttExtent *MqttBuffer_AllocExtent(struct MqttBuffer *buf, uint32_t bytes
     assert(buf->alloc_count > 0);
 
     ext = (struct MqttExtent*)(buf->first_available);
-    ext->len = bytes - sizeof(struct MqttExtent);
+    ext->len = bytes;
     ext->payload = buf->first_available + sizeof(struct MqttExtent);
     ext->next = NULL;
 
-    buf->first_available += bytes;
-    buf->available_bytes -= bytes;
+    buf->first_available += aligned_bytes;
+    buf->available_bytes -= aligned_bytes;
 
     return ext;
 }
