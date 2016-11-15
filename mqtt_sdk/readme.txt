@@ -72,10 +72,11 @@ cmake -DCMAKE_BUILD_TYPE=Release ~/mqtt_sdk
 ----------------
 1.创建MqttBuffer, 并通过MqttBuffer_Init进行初始化。
 2.调用Mqtt_PackConnectPkt，封装MQTT连接包。
-需要注意的是： id需设置为设备ID，user需设置为用户ID，password
-               需设置为API-KEY
+需要注意的是： id需设置为设备ID，user需设置为project ID，password
+               需设置为auth-info
 3.调用Mqtt_SendPkt发送MQTT连接包
 4.调用MqttBuffer_Destroy销毁MQTT连接包
+5.will_topic,will_msg,msg_len,will_retain 暂不支持,分别设为:NULL,NULL,0,0
 
 代码示例：
     ...

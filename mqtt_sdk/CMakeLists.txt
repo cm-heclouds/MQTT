@@ -39,8 +39,12 @@ else()
 endif()
 
 set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}/bin" CACHE PATH "Output directory for applications")
-set(LIBRARY_OUTPUT_PATH "${MqttSDK_BINARY_DIR}/bin")
+set(LIBRARY_OUTPUT_PATH "${CMAKE_BINARY_DIR}/bin")
+
+#option(BUILD_PYTHON_SDK "Build the Python SDK." OFF)
+#option(BUILD_JAVA_SDK "Build the Java SDK." OFF)
 
 include_directories(${CMAKE_SOURCE_DIR})
 add_subdirectory(src)
+#add_subdirectory(swig)
 add_subdirectory(sample)

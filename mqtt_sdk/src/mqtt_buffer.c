@@ -107,6 +107,7 @@ int MqttBuffer_Append(struct MqttBuffer *buf, char *payload, uint32_t size, int 
 
     MqttBuffer_AppendExtent(buf, ext);
     return MQTTERR_NOERROR;
+
 }
 
 void MqttBuffer_AppendExtent(struct MqttBuffer *buf, struct MqttExtent *ext)
