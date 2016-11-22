@@ -82,10 +82,10 @@ cmake -DCMAKE_BUILD_TYPE=Release ~/mqtt_sdk
     ...
     MqttBuffer_Init(ctx->mqttbuf);
     ...
-    err = Mqtt_PackConnectPkt(ctx->mqttbuf, 0, ctx->devid, 1,
-                              "WillTopic", "will message", 17,
+    err = Mqtt_PackConnectPkt(ctx->mqttbuf, keep_alive, ctx->devid, 1,
+                              NULL, NULL, 0,
                               MQTT_QOS_LEVEL0, 0, ctx->proid,
-                              ctx->apikey, strlen(ctx->apikey));
+                              auth_info, strlen(auth_info));
     if(MQTTERR_NOERROR != err) {
         // do some error handling.
     }
@@ -101,25 +101,23 @@ cmake -DCMAKE_BUILD_TYPE=Release ~/mqtt_sdk
 发布数据点
 ----------
 1.创建MqttBuffer, 并通过MqttBuffer_Init进行初始化。
-2.调用Mqtt_PackDataPointStart开始封装数据点
-3.调用Mqtt_AppendDPXXX API来添加数据点
-4.调用Mqtt_PackDataPointFinish来结束数据点的封装
-5.调用Mqtt_SendPkt发送数据点
-6.调用MqttBuffer_Destroy销毁MqttBuffer
+2.调用Mqtt_PackDataPointStart开始封装包头部
+3.调用Mqtt_AppendPayload封装数据部分。支持2种类型：MQTT_DPTYPE_JSON,MQTT_DPTYPE_FLOAT。type=MQTT_DPTYPE_JSON，data是json字符串；type=MQTT_DPTYPE_FLOAT，可以使用Mqtt_AppendDP封装数据，返回封装后的数据和长度
+4.调用Mqtt_SendPkt发送数据点
+5.调用MqttBuffer_Destroy销毁MqttBuffer
 
 代码示例：
     ...
     MqttBuffer_Init(ctx->mqttbuf);
     ...
+    char data[1024];
+    size_t data_size = 1024;
+    float temperature = 34.0;
     int err = 0;
     ts = (int64_t)time(NULL) * 1000;
-    err = Mqtt_PackDataPointStart(ctx->mqttbuf, 1, MQTT_QOS_LEVEL2, 0, 0);
-    err |= Mqtt_AppendDPStartObject(ctx->mqttbuf, "dsid", ts);
-    err |= Mqtt_AppendDPSubvalueInt(ctx->mqttbuf, "subvalue", 23);
-    err |= Mqtt_AppendDPSubvalueDouble(ctx->mqttbuf, "sub2", 23.167);
-    err |= Mqtt_AppendDPSubvalueString(ctx->mqttbuf, "str3", "xkke");
-    err |= Mqtt_AppendDPFinishObject(ctx->mqttbuf);
-    err |= Mqtt_PackDataPointFinish(ctx->mqttbuf);
+    err = Mqtt_PackDataPointStart(ctx->mqttbuf, 1, MQTT_QOS_LEVEL1, 0, 1);
+    err |= Mqtt_AppendDP(data, data_size, 1, &temperature, 1);
+    err |= Mqtt_AppendPayload(ctx->mqttbuf, ts, MQTT_DPTYPE_FLOAT, data, data_size);
 
     if(err) {
         // do some error handling
@@ -133,7 +131,7 @@ cmake -DCMAKE_BUILD_TYPE=Release ~/mqtt_sdk
     MqttBuffer_Destroy(ctx->mqttbuf);
     ...
 
-订阅数据流
+订阅用户自定义topic
 ----------
 1.创建MqttBuffer, 并通过MqttBuffer_Init进行初始化
 2.调用Mqtt_PackSubscribePkt封装订阅消息包
@@ -144,8 +142,9 @@ cmake -DCMAKE_BUILD_TYPE=Release ~/mqtt_sdk
     ...
     MqttBuffer_Init(ctx->mqttbuf);
     ...
-    const char *topic = "user_id/api-key/device-id/datastream";
-    err = Mqtt_PackSubscribePkt(ctx->mqttbuf, 1, topic, MQTT_QOS_LEVEL1);
+    char **topics;
+    ...
+    err = Mqtt_PackSubscribePkt(ctx->mqttbuf, 1, MQTT_QOS_LEVEL1, topics, topics_len);
     if(err != MQTTERR_NOERROR) {
         // do some error handling.
     }
@@ -169,8 +168,9 @@ cmake -DCMAKE_BUILD_TYPE=Release ~/mqtt_sdk
     ...
     MqttBuffer_Init(ctx->mqttbuf);
     ...
-    const char *topic = "user_id/api-key/device-id/datastream";
-    err = Mqtt_PackUnsubscribePkt(ctx->mqttbuf, 1, topic);
+    char **topics;
+    ...
+    err = Mqtt_PackUnsubscribePkt(ctx->mqttbuf, 1, topics, topics_len);
         if(err != MQTTERR_NOERROR) {
         // do some error handling.
     }

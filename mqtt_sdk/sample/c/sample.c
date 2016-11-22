@@ -54,7 +54,6 @@ struct Command
     const char *desc;
 };
 
-
 #define buf_size 1024
 #define STRLEN 64
 char buf[buf_size];
@@ -65,11 +64,11 @@ static int MqttSample_CmdPing(struct MqttSampleContext *ctx);
 static int MqttSample_RespCmdPublish(struct MqttSampleContext *ctx);
 static int MqttSample_CmdPublish(struct MqttSampleContext *ctx);
 static int MqttSample_CmdPushDp(struct MqttSampleContext *ctx);
-static int MqttSample_CmdPublishCommandResp(struct MqttSampleContext *ctx);
+//static int MqttSample_CmdPublishCommandResp(struct MqttSampleContext *ctx);
 static int MqttSample_CmdSubscribe(struct MqttSampleContext *ctx);
 static int MqttSample_CmdUnsubscribe(struct MqttSampleContext *ctx);
 static int MqttSample_CmdDisconnect(struct MqttSampleContext *ctx);
-static int MqttSample_CmdCmdRet(struct MqttSampleContext *ctx);
+//static int MqttSample_CmdCmdRet(struct MqttSampleContext *ctx);
 static int MqttSample_CmdExit(struct MqttSampleContext *ctx);
 static int MqttSample_CmdHelp(struct MqttSampleContext *ctx);
 
@@ -221,8 +220,6 @@ static int MqttSample_HandlePublish(void *arg, uint16_t pkt_id, const char *topi
     ctx->qos = qos;
     printf("dup=%d, qos=%d, id=%d\ntopic: %s\npayloadsize=%d\n",
            dup, qos, pkt_id, topic, payloadsize);
-
-    /*fix me : add response ?*/
 
     //get cmdid
     //$creq/topic_name/cmdid
@@ -378,23 +375,16 @@ static int MqttSample_CmdConnect(struct MqttSampleContext *ctx)
         return -1;
     }
 
-    //ctx->apikey = "F8E2ABB4278D47188CF6C1B3741D0DA1"; //discard
-    //ctx->proid = "1234";  //discard
     const char prjid[] = "339"; //project_id
-    const char auth_info[] = "{ \"SYS\" : \"9702D01524A6406FAD0183AB531B4DFB\" }"; //authoriz info
+    const char auth_info[] = "{ \"SYS\" : \"F8E2ABB4278D47188CF6C1B3741D0DA1\" }"; //authoriz info
+    ctx->devid = "9277";  //device_id
     int keep_alive = 120;
-    ctx->devid = "9278";  //device_id
 
     err = Mqtt_PackConnectPkt(ctx->mqttbuf, keep_alive, ctx->devid,
                               1, NULL,
                               NULL, 0,
                               MQTT_QOS_LEVEL0, 0, prjid,
                               auth_info, strlen(auth_info));
-    /*
-    err = Mqtt_PackConnectPkt(ctx->mqttbuf, keep_alive, ctx->devid, 1, user_name,
-                              password, sizeof(password), MQTT_QOS_LEVEL0, 0, NULL,
-                              NULL, 0);
-    */
     if(MQTTERR_NOERROR != err) {
         printf("Failed to pack the MQTT CONNECT PACKET, errcode is %d.\n", err);
         return -1;
@@ -416,180 +406,46 @@ static int MqttSample_CmdPing(struct MqttSampleContext *ctx)
 }
 
 
-
-static int MqttSample_CmdPublish0(struct MqttSampleContext *ctx)
-{
-    int err;
-    struct MqttExtent *ext;
-
-    char t_payload[] = {'\x07','\x00','\x01','\x00','\x01','\x41','\x42','\x43','\x44'};
-
-    if(ctx->mqttbuf->first_ext) {
-        return MQTTERR_INVALID_PARAMETER;
-    }
-
-    err = Mqtt_PackPublishPkt(ctx->mqttbuf, 1, "$dp", t_payload, sizeof(t_payload)/sizeof(char), MQTT_QOS_LEVEL0, 0, 1);
-
-    if(err != MQTTERR_NOERROR) {
-        return err;
-    }
-
-
-/*
-    err |= Mqtt_AppendDPStartObject(ctx->mqttbuf, "test-1", ts);
-
-    err |= Mqtt_AppendDPSubvalueInt(ctx->mqttbuf, "subvalue", 23);
-    err |= Mqtt_AppendDPSubvalueString(ctx->mqttbuf, "str3", "strvalue");
-    err |= Mqtt_AppendDPSubvalueDouble(ctx->mqttbuf, "sub2", 23.167);
-
-    err |= Mqtt_AppendDPFinishObject(ctx->mqttbuf);
-
-    err |= Mqtt_PackDataPointFinish(ctx->mqttbuf);
-    if(err) {
-        printf("Failed to pack data point package.\n");
-        return -1;
-    }
-*/
-    return 0;
-}
-
-inline int MqttSample_CmdPublish11(struct MqttSampleContext *ctx){
-    int err;
-    struct MqttExtent *ext;
-
-    //char t_payload[] = {'\x07','\x00','\x01','\x00','\x01','\x41','\x42','\x43','\x44'};
-    char t_json[]="{\"datastreams\":[{\"id\":\"temperature\",\"datapoints\":[\"at\":\"2016-06-24 09:40:00\",\"value\":36.5]},{\"id\":\"location\",\"datapoints\":[\"value\":10]}]}";
-    int payload_len = 1 + 2 + sizeof(t_json)/sizeof(char)-1;
-    char t_payload[payload_len];
-
-    //type
-    t_payload[0] = '\x01';
-
-    //length
-    int json_len = sizeof(t_json)/sizeof(char)-1;
-    t_payload[1] = json_len & 0xFF00;
-    t_payload[2] = json_len & 0xFF;
-
-    if(ctx->mqttbuf->first_ext) {
-        return MQTTERR_INVALID_PARAMETER;
-    }
-
-    err = Mqtt_PackPublishPkt(ctx->mqttbuf, 1, "$dp", t_payload, payload_len, MQTT_QOS_LEVEL1, 0, 1);
-
-    if(err != MQTTERR_NOERROR) {
-        return err;
-    }
-
-    return 0;
-}
-
-inline int MqttSample_CmdPublish01(struct MqttSampleContext *ctx){
-
-    int err;
-    struct MqttExtent *ext;
-
-    //char t_payload[] = {'\x07','\x00','\x01','\x00','\x01','\x41','\x42','\x43','\x44'};
-    char t_json[]="{\"datastreams\":[{\"id\":\"temperature\",\"datapoints\":[\"at\":\"2016-06-24 09:40:00\",\"value\":36.5]},{\"id\":\"location\",\"datapoints\":[\"value\":10]}]}";
-    int payload_len = 1 + 2 + sizeof(t_json)/sizeof(char)-1;
-    char t_payload[payload_len];
-
-    //type
-    t_payload[0] = '\x01';
-
-    //length
-    int json_len = sizeof(t_json)/sizeof(char)-1;
-    t_payload[1] = json_len & 0xFF00;
-    t_payload[2] = json_len & 0xFF;
-
-    if(ctx->mqttbuf->first_ext) {
-        return MQTTERR_INVALID_PARAMETER;
-    }
-
-    err = Mqtt_PackPublishPkt(ctx->mqttbuf, 1, "$dp", t_payload, payload_len, MQTT_QOS_LEVEL0, 0, 1);
-
-    if(err != MQTTERR_NOERROR) {
-        return err;
-    }
-
-    return 0;
-}
-
-inline int MqttSample_CmdPublish07(struct MqttSampleContext *ctx){
-    int err;
-    struct MqttExtent *ext;
-
-    char t_payload[] = {'\x07','\x00','\x01','\x00','\x01','\x41','\x42','\x43','\x44'};
-
-    if(ctx->mqttbuf->first_ext) {
-        return MQTTERR_INVALID_PARAMETER;
-    }
-
-    err = Mqtt_PackPublishPkt(ctx->mqttbuf, 1, "$dp", t_payload, sizeof(t_payload)/sizeof(char), MQTT_QOS_LEVEL0, 0, 1);
-
-    if(err != MQTTERR_NOERROR) {
-        return err;
-    }
-
-    return 0;
-
-}
-
-
-inline int MqttSample_CmdPublish17(struct MqttSampleContext *ctx){
-    /*
+inline int MqttSample_CmdPublishJson(struct MqttSampleContext *ctx, int Qos_level){
     int err = 0;
-    int64_t ts;
-
-    ts = (int64_t)time(NULL) * 1000;
-
-    //fix me : I think it's wrong , the remain length is wrong when use append
-    err |= Mqtt_PackDataPointStart(ctx->mqttbuf, 1, MQTT_QOS_LEVEL1, 0, 1);
-
-
-    char t_payload[] = {'0x07','0x01','0x01','0x01','0x01','0x41','0x42','0x43','0x44'};
-    MqttBuffer_Append(ctx->mqttbuf, t_payload, strlen(t_payload), 1);
-    */
-
-    int err;
-    struct MqttExtent *ext;
-
-    if(ctx->mqttbuf->first_ext) {
-        return MQTTERR_INVALID_PARAMETER;
-    }
-
-    char t_payload[] = {'\x07','\x00','\x01','\x00','\x01','\x41','\x42','\x43','\x44'};
-
-    err = Mqtt_PackPublishPkt(ctx->mqttbuf, 1, "$dp", t_payload, sizeof(t_payload)/sizeof(char), MQTT_QOS_LEVEL1, 0, 1);
-
-    if(err != MQTTERR_NOERROR) {
-        return err;
-    }
-
-
-/*
-    err |= Mqtt_AppendDPStartObject(ctx->mqttbuf, "test-1", ts);
-
-    err |= Mqtt_AppendDPSubvalueInt(ctx->mqttbuf, "subvalue", 23);
-    err |= Mqtt_AppendDPSubvalueString(ctx->mqttbuf, "str3", "strvalue");
-    err |= Mqtt_AppendDPSubvalueDouble(ctx->mqttbuf, "sub2", 23.167);
-
-    err |= Mqtt_AppendDPFinishObject(ctx->mqttbuf);
-
-    err |= Mqtt_PackDataPointFinish(ctx->mqttbuf);
+    int64_t ts = (int64_t)time(NULL);
+    MqttBuffer_Init(ctx->mqttbuf);
+    err = Mqtt_PackDataPointStart(ctx->mqttbuf, 1, Qos_level, 0, 1);
+    err |= Mqtt_AppendPayload(ctx->mqttbuf, &ts, MQTT_DPTYPE_JSON, "{test:1}", 8);
     if(err) {
-        printf("Failed to pack data point package.\n");
-        return -1;
+        printf("assemble publish package(type=json,Qos= %d) error\n", Qos_level);
     }
-*/
+    return 0;
+}
+
+
+inline int MqttSample_CmdPublishFloat(struct MqttSampleContext *ctx, int Qos_level){
+
+    MqttBuffer_Init(ctx->mqttbuf);
+    int err = 0;
+    int64_t ts = (int64_t)time(NULL);
+    int dsid = 1;
+    size_t size = 1024;
+    size_t size2 = 512;
+    char data[1024];
+    float dp[2] = {34.0, -20.3};
+    err = Mqtt_PackDataPointStart(ctx->mqttbuf, 1, Qos_level, 0, 1);
+    err |= Mqtt_AppendFloatDP(data, &size, dsid, dp, 2);
+    err |= Mqtt_AppendFloatDP(data + size, &size2, 2, dp, 1);
+    err |= Mqtt_AppendPayload(ctx->mqttbuf, &ts, MQTT_DPTYPE_FLOAT, data, size+size2);
+    if(err) {
+        printf("assemble publish package(type=Float,Qos= %d) error\n", Qos_level);
+    }
+
     return 0;
 
 }
+
 
 static int MqttSample_CmdPublish(struct MqttSampleContext *ctx)
 {
 
 
-    char opt;
     int Qos=1;
     int type = 7;
     int i = 0;
@@ -607,19 +463,19 @@ static int MqttSample_CmdPublish(struct MqttSampleContext *ctx)
     }
 
     if(0==Qos){
-        if(1==type){
-            MqttSample_CmdPublish01(ctx);
-        }else if(7==type){
-            MqttSample_CmdPublish07(ctx);
+        if(MQTT_DPTYPE_JSON==type){
+            MqttSample_CmdPublishJson(ctx,MQTT_QOS_LEVEL0);
+        }else if(MQTT_DPTYPE_FLOAT==type){
+            MqttSample_CmdPublishFloat(ctx,MQTT_QOS_LEVEL0);
         }
     }else if(1==Qos){
-        if(1==type){
-            MqttSample_CmdPublish11(ctx);
-        }else if(7==type){
-            MqttSample_CmdPublish17(ctx);
+        if(MQTT_DPTYPE_JSON==type){
+            MqttSample_CmdPublishJson(ctx,MQTT_QOS_LEVEL1);
+        }else if(MQTT_DPTYPE_FLOAT==type){
+            MqttSample_CmdPublishFloat(ctx,MQTT_QOS_LEVEL1);
         }
     }
-
+    return 0;
 }
 
 
@@ -629,7 +485,6 @@ static int MqttSample_CmdPushDp(struct MqttSampleContext *ctx)
     int err;
     char **topics;
     size_t topics_len = 0;
-    struct MqttExtent *ext;
     int i=0;
 
 /*去掉最后回车键
@@ -650,7 +505,7 @@ static int MqttSample_CmdPushDp(struct MqttSampleContext *ctx)
     }
     if(4 != topics_len){
         printf("usage:push_dp topicname payload pkg_id");
-        return err;
+        return MQTTERR_INVALID_PARAMETER;
     }
 
 
@@ -658,10 +513,6 @@ static int MqttSample_CmdPushDp(struct MqttSampleContext *ctx)
         return MQTTERR_INVALID_PARAMETER;
     }
 
-    /*
-    std::string pkg_id_s(topics+3);
-    int pkg_id = std::stoi(pkg_id_s);
-    */
     int pkg_id = atoi(*(topics+3));
     err = Mqtt_PackPublishPkt(ctx->mqttbuf, pkg_id, *(topics+1), *(topics+2), strlen(*(topics+2)), MQTT_QOS_LEVEL1, 0, 1);
 
@@ -706,13 +557,10 @@ static int MqttSample_RespCmdPublish(struct MqttSampleContext *ctx){
     return 0;
 }
 
-
+/*
 static int MqttSample_CmdPublishCommandResp(struct MqttSampleContext *ctx)
 {
     int err = 0;
-    int64_t ts;
-
-    ts = (int64_t)time(NULL) * 1000;
 
     err |= Mqtt_PackDataPointStart(ctx->mqttbuf, 1, MQTT_QOS_LEVEL1, 0, 0);
 
@@ -720,25 +568,9 @@ static int MqttSample_CmdPublishCommandResp(struct MqttSampleContext *ctx)
     char t_payload[] = {'\x07','\x01','\x01','\x01','\x01','\x41','\x42','\x43','\x44'};
     MqttBuffer_Append(ctx->mqttbuf, t_payload, strlen(t_payload), 1);
 
-
-/*
-    err |= Mqtt_AppendDPStartObject(ctx->mqttbuf, "test-1", ts);
-
-    err |= Mqtt_AppendDPSubvalueInt(ctx->mqttbuf, "subvalue", 23);
-    err |= Mqtt_AppendDPSubvalueString(ctx->mqttbuf, "str3", "strvalue");
-    err |= Mqtt_AppendDPSubvalueDouble(ctx->mqttbuf, "sub2", 23.167);
-
-    err |= Mqtt_AppendDPFinishObject(ctx->mqttbuf);
-
-    err |= Mqtt_PackDataPointFinish(ctx->mqttbuf);
-    if(err) {
-        printf("Failed to pack data point package.\n");
-        return -1;
-    }
-*/
     return 0;
 }
-
+*/
 
 
 static int MqttSample_CmdSubscribe(struct MqttSampleContext *ctx)
@@ -756,21 +588,11 @@ static int MqttSample_CmdSubscribe(struct MqttSampleContext *ctx)
         printf("\n");
     }
 
-    //sprintf(topic, "%s/%s/45523/test-1", ctx->proid, ctx->apikey);
     err = Mqtt_PackSubscribePkt(ctx->mqttbuf, 11, MQTT_QOS_LEVEL1, topics+1, topics_len-1);
     if(err != MQTTERR_NOERROR) {
         printf("Critical bug: failed to pack the subscribe packet.\n");
         return -1;
     }
-
-    /*
-    sprintf(topic, "%s/%s/45523/test-2", ctx->proid, ctx->apikey);
-    err = Mqtt_AppendSubscribeTopic(ctx->mqttbuf, topic, MQTT_QOS_LEVEL1);
-    if (err != MQTTERR_NOERROR) {
-        printf("Critical bug: failed to pack the subscribe packet.\n");
-        return -1;
-    }
-    */
 
     return 0;
 }
@@ -783,7 +605,7 @@ static int MqttSample_CmdUnsubscribe(struct MqttSampleContext *ctx)
     topics = str_split(buf, ' ', &topics_len);
 
 
-    printf("topic len %d\n", topics_len);
+    printf("topic len %d\n", (int)topics_len);
     if (topics){
         int i;
         for (i = 0; *(topics + i); i++){
@@ -812,7 +634,7 @@ static int MqttSample_CmdDisconnect(struct MqttSampleContext *ctx)
 
     return 1;
 }
-
+/*
 static int MqttSample_CmdCmdRet(struct MqttSampleContext *ctx)
 {
     int err;
@@ -825,7 +647,7 @@ static int MqttSample_CmdCmdRet(struct MqttSampleContext *ctx)
 
     return 0;
 }
-
+*/
 static int MqttSample_CmdExit(struct MqttSampleContext *ctx)
 {
     (void)ctx;
@@ -969,14 +791,6 @@ static int MqttSample_Init(struct MqttSampleContext *ctx)
     ctx->sendedbytes = -1;
     ctx->mqttfd = -1;
 
-    /*
-    ctx->host = "192.168.200.218";
-    ctx->port = 6002;
-    ctx->proid = "433223";
-    ctx->devid = "45523";
-    ctx->apikey = "Bs04OCJioNgpmvjRphRak15j7Z8=";
-    */
-
     err = Mqtt_InitContext(ctx->mqttctx, 1 << 20);
     if(MQTTERR_NOERROR != err) {
         printf("Failed to init MQTT context errcode is %d", err);
@@ -1046,28 +860,6 @@ int main(int argc, char **argv)
     const int evt_max_cnt = 2;
     struct epoll_event events[evt_max_cnt];
     int exit;
-
-
-/*
- * PayloadConnect{
- * client_id_len_= 3
- * client_id_= 339
- * usr_name_len_= 9
- * usr_name_= WillTopic
- * password_len_= 17
- * password_= will message-xxxx
- * }
-to
-PayloadConnect{
-client_id_len_= 4
-client_id_= 9277
-usr_name_len_= 3
-usr_name_= 339
-password_len_= 45
-password_= {"SYS" : "F8E2ABB4278D47188CF6C1B3741D0DA1" }
-}
- * */
-
 
     smpctx->host = "172.19.3.1";
     smpctx->port = 10019;

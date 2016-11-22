@@ -90,6 +90,7 @@ enum MqttRetCode {
 
 /** 数据点类型，内部使用 */
 enum MqttDataPointType {
+    MQTT_DPTYPE_JSON = 1,
     MQTT_DPTYPE_TRIPLE = 2,  /**< 包含数据流名称、时间戳和数据点值 */
     MQTT_DPTYPE_BINARY = 4,   /**< 包含二进制数据的数据点 */
     MQTT_DPTYPE_FLOAT = 7
@@ -443,6 +444,30 @@ int Mqtt_PackDataPointFinish(struct MqttBuffer *buf);
 int Mqtt_PackDataPointByBinary(struct MqttBuffer *buf, uint16_t pkt_id, const char *dsid,
                                const char *desc, int64_t time, const char *bin,
                                uint32_t size, enum MqttQosLevel qos, int retain, int own, int save);
+
+/**
+ * 添加数据到publish包
+ * @param buf 存储MQTT_DPTYPE_TRIPLE类型的数据包的缓冲区对象
+ * @param ts 时间
+ * @param type type=1,json数据格式
+ *             type=7,float数据格式
+ * @param data 需要添加的数据
+ * @param len 数据长度
+ * @return 成功返回MQTTERR_NOERROR
+ */
+int Mqtt_AppendPayload(struct MqttBuffer *buf, int64_t *ts, int32_t type, const char *data, size_t len);
+
+
+/**
+ * 把float数据点组合成type=7的格式
+ * @param data 把数据点按照规定的格式放到data指向的内存
+ * @param len data的长度
+ * @param dsid 数据流id
+ * @param datapoint 指向float数据点
+ * @param size float数据点的个数
+ * @return 成功返回MQTTERR_NOERROR
+ */
+int Mqtt_AppendFloatDP(char *data, size_t *len, int16_t dsid, float  *datapoint, size_t size);
 
 #ifdef __cplusplus
 } // extern "C"

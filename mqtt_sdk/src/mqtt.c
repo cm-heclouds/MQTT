@@ -1593,11 +1593,12 @@ int Mqtt_PackDataPointStart(struct MqttBuffer *buf, uint16_t pkt_id,
                             enum MqttQosLevel qos, int retain, int topic)
 {
     int err;
-    struct MqttExtent *ext;
+    //struct MqttExtent *ext;
 
     if(buf->first_ext) {
         return MQTTERR_INVALID_PARAMETER;
     }
+
 
     if(topic) {
         err = Mqtt_PackPublishPkt(buf, pkt_id, "$dp", NULL, 0, qos, retain, 0);
@@ -1610,7 +1611,7 @@ int Mqtt_PackDataPointStart(struct MqttBuffer *buf, uint16_t pkt_id,
         return err;
     }
 
-    /*
+/*
     ext = MqttBuffer_AllocExtent(buf, 2 + sizeof(struct DataPointPktInfo));
     if(!ext) {
         return MQTTERR_OUTOFMEMORY;
@@ -1628,8 +1629,8 @@ int Mqtt_PackDataPointStart(struct MqttBuffer *buf, uint16_t pkt_id,
     }
 
     MqttBuffer_AppendExtent(buf, ext);
-    */
 
+*/
 
     return MQTTERR_NOERROR;
 }
@@ -2132,5 +2133,83 @@ int Mqtt_PackDataPointByBinary(struct MqttBuffer *buf, uint16_t pkt_id, const ch
 
     MqttBuffer_AppendExtent(buf, header_ext);
     MqttBuffer_AppendExtent(buf, binary_ext);
+    return MQTTERR_NOERROR;
+}
+
+
+int Mqtt_AppendPayload(struct MqttBuffer *buf, int64_t* ts, int32_t type, const char* data, size_t len){
+    struct MqttExtent *ext;
+    if(MQTT_DPTYPE_JSON == type){
+        ext = MqttBuffer_AllocExtent(buf, 1 + 2 + len);
+        if(!ext){
+            return MQTTERR_OUTOFMEMORY;
+        }
+
+        ext->payload[0] = MQTT_DPTYPE_JSON & 0xFF;
+        ext->payload[1] = len& 0xFF00;
+        ext->payload[2] = len & 0xFF;
+        memcpy(ext->payload + 3, data, len);
+
+    }else if(MQTT_DPTYPE_FLOAT == type){
+        if(NULL == ts){
+            ext = MqttBuffer_AllocExtent(buf, 1 + len);
+            if(!ext){return MQTTERR_OUTOFMEMORY;}
+
+            ext->payload[0] = MQTT_DPTYPE_FLOAT & 0xFF;
+            memcpy(ext->payload+1, data, len);
+
+        }else{
+            ext = MqttBuffer_AllocExtent(buf, 1 + 6 + len);
+            if(!ext){return MQTTERR_OUTOFMEMORY;}
+
+            ext->payload[0] = (MQTT_DPTYPE_FLOAT & 0xFF) | 0x80;
+            //time
+            if(0 == *ts){
+                time(ts);
+            }
+            struct tm *t;
+            t = gmtime(ts);
+            if(!t) {
+                return MQTTERR_INTERNAL;
+            }
+            ext->payload[1] = (t->tm_year+1900)%100;
+            ext->payload[2] = (t->tm_mon+1)&0xFF;
+            ext->payload[3] = (t->tm_mday)&0xFF;
+            ext->payload[4] = (t->tm_hour)&0xFF;
+            ext->payload[5] = (t->tm_min)&0xFF;
+            ext->payload[6] = (t->tm_sec)&0xFF;
+            memcpy(ext->payload + 7, data, len);
+
+        }
+    }else{
+        return MQTTERR_INVALID_PARAMETER;
+    }
+
+
+    int err;
+    if(MQTTERR_NOERROR != (err = Mqtt_AppendLength(buf, ext->len))) {
+        return err;
+    }
+
+    MqttBuffer_AppendExtent(buf, ext);
+    return MQTTERR_NOERROR;
+
+}
+
+int Mqtt_AppendFloatDP(char *data, size_t *len, int16_t dsid, float *datapoint, size_t size){
+    size_t total_size = 4 + 4*size;
+    if(*len < total_size)
+        {return MQTTERR_OUTOFMEMORY;}
+    data[0] = (dsid >> 8) & 0xFF;
+    data[1] = dsid & 0xFF;
+    data[2] = (size >> 8) & 0xFF;
+    data[3] = size & 0xFF;
+
+    int i;
+    for(i=0;i<size;++i){
+        const void *p_dp = (const void*)(datapoint+i);
+        memcpy(data+4+4*i, p_dp, 4);
+    }
+    *len = total_size;
     return MQTTERR_NOERROR;
 }
