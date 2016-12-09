@@ -392,10 +392,14 @@ static int Mqtt_HandlePublish(struct MqttContext *ctx, char flags,
     const char qos = ((uint8_t)flags & 0x06) >> 1;
     const char retain = flags & 0x01;
     uint16_t topic_len, pkt_id = 0;
-    size_t payload_len;
-    char *payload;
+    size_t payload_len, arg_len;
+    char *payload, *arg ;
     char *topic, *cursor;
     int err = MQTTERR_NOERROR;
+    int64_t ts = 0;
+    char *desc = "";
+    const char *cmdid;
+    int i;
 
     if(size < 2) {
         return MQTTERR_ILLEGAL_PKT;
@@ -460,8 +464,7 @@ static int Mqtt_HandlePublish(struct MqttContext *ctx, char flags,
     if('$' == *topic) {
         if(topic == strstr(topic, CMD_TOPIC_PREFIX)) {
             //$creq/cmdid
-            int i=CMD_TOPIC_PREFIX_LEN + 1; //Topicname=$creq字符串’\0’结尾
-            const char *cmdid;
+            i=CMD_TOPIC_PREFIX_LEN + 1; //Topicname=$creq字符串’\0’结尾
             cmdid = topic + i;
 
             /*
@@ -476,10 +479,8 @@ static int Mqtt_HandlePublish(struct MqttContext *ctx, char flags,
                 return MQTTERR_ILLEGAL_PKT;
             */
 
-            char *arg = payload;
-            size_t arg_len = payload_len;
-            int64_t ts = 0;
-            char *desc = "";
+            arg = payload;
+            arg_len = payload_len;
 
             /*
             if((payload_len < 1) || ((*payload & 0x1f) != 0x5)) {

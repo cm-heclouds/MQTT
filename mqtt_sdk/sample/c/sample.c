@@ -490,7 +490,7 @@ static int MqttSample_CmdPushDp(struct MqttSampleContext *ctx)
 /*去掉最后回车键
  */
     for(i=strlen(buf); i>0; --i){
-        if(buf[i-1] == '0x0a')
+        if(buf[i-1] == 0x0a)
             buf[i-1] = 0x00;
     }
 
@@ -540,7 +540,7 @@ static int MqttSample_RespCmdPublish(struct MqttSampleContext *ctx){
         }
     }
 
-    int err;
+    int err = 0;
     if(0==Qos){
          err = Mqtt_PackCmdRetPkt(ctx->mqttbuf, 1, ctx->cmdid,
                                   "hello MQTT", 11, MQTT_QOS_LEVEL0, 1);
