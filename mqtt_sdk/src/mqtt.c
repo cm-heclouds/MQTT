@@ -1375,7 +1375,7 @@ int Mqtt_PackSubscribePkt(struct MqttBuffer *buf, uint16_t pkt_id,
     }
     fixed_head->payload[0] = (char)((MQTT_PKT_SUBSCRIBE << 4) | 0x00);
 
-    remaining_len = 2 + 2*topics_len+ topic_total_len + 1;  // 2 bytes packet id, 2 bytes topic length + topic + 1 byte reserve
+    remaining_len = 2 + 2*(topics_len + 1) + topic_total_len;  // 2 bytes packet id, 2 bytes topic length + topic + 1 byte reserve
     ext = MqttBuffer_AllocExtent(buf, remaining_len);
     if(NULL == ext) {
         return MQTTERR_OUTOFMEMORY;
@@ -1396,8 +1396,11 @@ int Mqtt_PackSubscribePkt(struct MqttBuffer *buf, uint16_t pkt_id,
         topic = topics[i];
         topic_len = strlen(topic);
         Mqtt_PktWriteString(&cursor, topic, topic_len);
+        cursor[0] = qos & 0xFF;
+        cursor += 1;
     }
 
+    
     MqttBuffer_AppendExtent(buf, fixed_head);
     MqttBuffer_AppendExtent(buf, ext);
 

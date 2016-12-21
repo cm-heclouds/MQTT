@@ -58,6 +58,11 @@ struct Command
 #define STRLEN 64
 char buf[buf_size];
 char g_cmdid[STRLEN];
+char* prjid = "339"; //project_id
+char* auth_info = "{\"SYS\":\"F8E2ABB4278D47188CF6C1B3741D0DA1\"}"; //authoriz info
+char* devid = "9277";  //device_id
+#define MAX_TOPICS_NUMB 100
+char* topics[MAX_TOPICS_NUMB+1];
 
 static int MqttSample_CmdConnect(struct MqttSampleContext *ctx);
 static int MqttSample_CmdPing(struct MqttSampleContext *ctx);
@@ -85,53 +90,36 @@ static const struct Command commands[] = {
     {"help", MqttSample_CmdHelp, "Print the usage of the commands."}
 };
 
-
-char** str_split(char* a_str, const char a_delim, size_t* sptr_len)
-{
-    char** result    = 0;
-    size_t count     = 0;
-    char* tmp        = a_str;
-    char* last_comma = 0;
-    char delim[2];
-    delim[0] = a_delim;
-    delim[1] = 0;
-
-    /* Count how many elements will be extracted. */
-    while (*tmp)
-        {
-            if (a_delim == *tmp)
-                {
-                    ++count;
-                    last_comma = tmp;
-                }
-            tmp++;
+char** str_split(char* buf, size_t* topics_len){
+    char** result = 0;
+    result = topics;
+    int len = strlen(buf);
+    int i=0;
+    *topics_len = 0;
+    for(i=0;i<len;++i){
+        while(buf[i]=='\x20' && i<len){
+            buf[i] = '\x00';
+            ++i;
         }
-
-    /* Add space for trailing token. */
-    count += last_comma < (a_str + strlen(a_str) - 1);
-
-    *sptr_len = count;
-    /* Add space for terminating null string so caller
-       knows where the list of returned strings ends. */
-    ++count;
-
-    result = (char**)malloc(sizeof(char*) * count);
-
-    if (result)
-        {
-            size_t idx  = 0;
-            char* token = strtok(a_str, delim);
-
-            while (token)
-                {
-                    assert(idx < count);
-                    *(result + idx++) = strdup(token);
-                    token = strtok(0, delim);
-                }
-            assert(idx == count - 1);
-            *(result + idx) = 0;
+        if(len == i){
+            return result;
         }
+        if(buf[i] != '\x20'){
+            topics[*topics_len] = buf + i;
+            *topics_len += 1;
 
+            while( buf[i] != '\x20' && i<len){
+                ++i;
+            }
+            if(len == i){
+                return result;
+            }
+            if(buf[i] == '\x20'){
+                buf[i] = '\x00';
+                continue;
+            }
+        }
+    }
     return result;
 }
 
@@ -374,12 +362,12 @@ static int MqttSample_CmdConnect(struct MqttSampleContext *ctx)
         printf("Failed to add the socket to the epoll, errcode is %d.\n", errno);
         return -1;
     }
-
-    const char prjid[] = "339"; //project_id
-    const char auth_info[] = "{ \"SYS\" : \"F8E2ABB4278D47188CF6C1B3741D0DA1\" }"; //authoriz info
-    ctx->devid = "9277";  //device_id
+    
+    ctx->devid = devid;
     int keep_alive = 120;
-
+    printf("dev id:%s\n", devid );
+    printf("project id:%s\n", prjid);
+    printf("auth info:%s\n", auth_info);
     err = Mqtt_PackConnectPkt(ctx->mqttbuf, keep_alive, ctx->devid,
                               1, NULL,
                               NULL, 0,
@@ -494,20 +482,17 @@ static int MqttSample_CmdPushDp(struct MqttSampleContext *ctx)
             buf[i-1] = 0x00;
     }
 
-    topics = str_split(buf, ' ', &topics_len);
+    topics = str_split(buf, &topics_len);
 
-    if (topics){
-        int i;
-        for (i = 0; *(topics + i); i++){
-                    printf("%s\n", *(topics + i));
-        }
-        printf("\n");
-    }
     if(4 != topics_len){
         printf("usage:push_dp topicname payload pkg_id");
         return MQTTERR_INVALID_PARAMETER;
     }
 
+    printf("topic anme:%s\n", *(topics+1));
+    printf("payload:%s\n", *(topics+2));
+    printf("pkg_id:%s\n", *(topics+3));
+    printf("\n");
 
     if(ctx->mqttbuf->first_ext) {
         return MQTTERR_INVALID_PARAMETER;
@@ -578,14 +563,20 @@ static int MqttSample_CmdSubscribe(struct MqttSampleContext *ctx)
     int err;
     char **topics;
     size_t topics_len = 0;
-    topics = str_split(buf, ' ', &topics_len);
+    int i = 0;
 
-    if (topics){
-        int i;
-        for (i = 0; *(topics + i); i++){
-                    printf("%s\n", *(topics + i));
-        }
-        printf("\n");
+    
+/*去掉最后回车键
+ */
+    for(i=strlen(buf); i>0; --i){
+        if(buf[i-1] == 0x0a)
+            buf[i-1] = 0x00;
+    }
+
+    topics = str_split(buf, &topics_len);
+
+    for(i=1;i<topics_len;++i){
+        printf("topic name:%s\n", *(topics + i));
     }
 
     err = Mqtt_PackSubscribePkt(ctx->mqttbuf, 11, MQTT_QOS_LEVEL1, topics+1, topics_len-1);
@@ -602,18 +593,24 @@ static int MqttSample_CmdUnsubscribe(struct MqttSampleContext *ctx)
     int err;
     char **topics;
     size_t topics_len = 0;
-    topics = str_split(buf, ' ', &topics_len);
+    int i = 0;
 
-
-    printf("topic len %d\n", (int)topics_len);
-    if (topics){
-        int i;
-        for (i = 0; *(topics + i); i++){
-                    printf("%s\n", *(topics + i));
-        }
-        printf("\n");
+    
+/*去掉最后回车键
+ */
+    for(i=strlen(buf); i>0; --i){
+        if(buf[i-1] == 0x0a)
+            buf[i-1] = 0x00;
     }
 
+    topics = str_split(buf, &topics_len);
+
+
+    for(i=1;i<topics_len;++i){
+        printf("unsubscribe topic name:%s\n", *(topics + i));
+    }
+    printf("\n");
+    
     err = Mqtt_PackUnsubscribePkt(ctx->mqttbuf, 11, topics+1, topics_len-1);
     if(err != MQTTERR_NOERROR) {
         printf("Critical bug: failed to pack the unsubscribe packet.\n");
@@ -850,6 +847,9 @@ static int MqttSample_Init(struct MqttSampleContext *ctx)
 void useage(char *argv){
     printf("-i ip\n");
     printf("-p port\n");
+    printf("-j project id\n");
+    printf("-a auth-info\n");
+    printf("-d devid\n");
     exit(1);
 }
 
@@ -862,12 +862,11 @@ int main(int argc, char **argv)
     int exit;
 
     smpctx->host = "172.19.3.1";
-    smpctx->port = 10019;
-
+    smpctx->port = 10021;
 
     char opt;
 
-    while ((opt = getopt(argc, argv, "hi:p:")) != -1) {
+    while ((opt = getopt(argc, argv, "hi:p:j:a:d:")) != -1) {
         switch(opt){
         case 'i':
             smpctx->host = optarg;
@@ -879,6 +878,18 @@ int main(int argc, char **argv)
 
         case 'h':
             useage(argv[0]);
+            break;
+
+        case 'j':
+            prjid = optarg;
+            break;
+
+        case 'a':
+            auth_info = optarg;
+            break;
+
+        case 'd':
+            devid = optarg;
             break;
 
         default:
