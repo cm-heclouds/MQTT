@@ -2150,7 +2150,7 @@ int Mqtt_AppendPayload(struct MqttBuffer *buf, int64_t* ts, int32_t type, const 
         }
 
         ext->payload[0] = MQTT_DPTYPE_JSON & 0xFF;
-        ext->payload[1] = len& 0xFF00;
+        ext->payload[1] = (len>>8) & 0xFF;
         ext->payload[2] = len & 0xFF;
         memcpy(ext->payload + 3, data, len);
 
