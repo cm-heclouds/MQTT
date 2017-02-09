@@ -24,8 +24,8 @@
 
 引用MQTT SDK的源码
 ------------------
-如果只需C语言版本的SDK，只需要将mqtt目录下的config.h、mqtt.h
-和mqtt_buffer.h，以及src目录下的mqtt.c和mqtt_buffer.c添加到您
+如果只需C语言版本的SDK，只需要将mqtt目录下的config.h、mqtt.h、cJSON.h
+和mqtt_buffer.h，以及src目录下的mqtt.c、cJSON.c和mqtt_buffer.c添加到您
 的工程中。
 如果需要C++语言版本的SDK，需将除C语言版所需文件外的
 mqtt/mqtt_buf.hpp和mqtt_base.hpp添加到您的项目中。
@@ -101,23 +101,20 @@ cmake -DCMAKE_BUILD_TYPE=Release ~/mqtt_sdk
 发布数据点
 ----------
 1.创建MqttBuffer, 并通过MqttBuffer_Init进行初始化。
-2.调用Mqtt_PackDataPointStart开始封装包头部
-3.调用Mqtt_AppendPayload封装数据部分。支持2种类型：MQTT_DPTYPE_JSON,MQTT_DPTYPE_FLOAT。type=MQTT_DPTYPE_JSON，data是json字符串；type=MQTT_DPTYPE_FLOAT，可以使用Mqtt_AppendDP封装数据，返回封装后的数据和长度
-4.调用Mqtt_SendPkt发送数据点
-5.调用MqttBuffer_Destroy销毁MqttBuffer
+2.调用Mqtt_PackDataPointBy*封装数据包
+3.调用Mqtt_SendPkt发送数据点
+4.调用MqttBuffer_Destroy销毁MqttBuffer
 
 代码示例：
     ...
     MqttBuffer_Init(ctx->mqttbuf);
     ...
-    char data[1024];
-    size_t data_size = 1024;
-    float temperature = 34.0;
-    int err = 0;
-    ts = (int64_t)time(NULL) * 1000;
-    err = Mqtt_PackDataPointStart(ctx->mqttbuf, 1, MQTT_QOS_LEVEL1, 0, 1);
-    err |= Mqtt_AppendDP(data, data_size, 1, &temperature, 1);
-    err |= Mqtt_AppendPayload(ctx->mqttbuf, ts, MQTT_DPTYPE_FLOAT, data, data_size);
+    const char *str = ",;temperature,2015-03-22 22:31:12,22.5;102;pm2.5,89;10";
+    uint32_t size = strlen(str);
+    int retain = 0;
+    int own = 1;
+    int err = MQTTERR_NOERROR;
+    err = Mqtt_PackDataPointByString(ctx->mqttbuf, g_pkt_id++, 0, kTypeString, str, size, qos, retain, own);
 
     if(err) {
         // do some error handling

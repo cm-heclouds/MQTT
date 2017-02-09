@@ -1,4 +1,4 @@
-set (MQTT_SOURCE mqtt.c mqtt_buffer.c)
+set (MQTT_SOURCE mqtt.c mqtt_buffer.c cJSON.c)
 
 if(WIN32)
   list(APPEND MQTT_SOURCE mqtt.def)
@@ -12,4 +12,9 @@ if(NOT MSVC)
 endif()
 
 add_library(mqtt SHARED ${MQTT_SOURCE})
+
+TARGET_LINK_LIBRARIES(mqtt
+  m
+)
+
 

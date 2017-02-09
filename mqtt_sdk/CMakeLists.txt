@@ -4,7 +4,7 @@ set(MIN_VER_CMAKE 2.6)
 
 cmake_minimum_required(VERSION "${MIN_VER_CMAKE}" FATAL_ERROR)
 
-# must go before the project command                                                             
+# must go before the project command
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Configs" FORCE)
 if(DEFINED CMAKE_BUILD_TYPE)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS ${CMAKE_CONFIGURATION_TYPES})
@@ -21,6 +21,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  
   if(MSVC)
     set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} /Wall")
 	set(CMAKE_C_FLAGS_DEBUG "$ENV{CFLAGS} /Wall")

@@ -41,7 +41,7 @@ struct MqttExtent *MqttBuffer_AllocExtent(struct MqttBuffer *buf, uint32_t bytes
     uint32_t aligned_bytes = bytes + sizeof(struct MqttExtent);
     aligned_bytes = aligned_bytes + (MQTT_DEFAULT_ALIGNMENT -
         (aligned_bytes % MQTT_DEFAULT_ALIGNMENT)) % MQTT_DEFAULT_ALIGNMENT;
-    
+
     if(buf->available_bytes < aligned_bytes) {
         uint32_t alloc_bytes;
         char *chunk;
@@ -54,7 +54,7 @@ struct MqttExtent *MqttBuffer_AllocExtent(struct MqttBuffer *buf, uint32_t bytes
             }
 
             memset(tmp, 0, max_count * sizeof(char**));
-            memcpy(tmp, buf->allocations, buf->alloc_max_count);
+            memcpy(tmp, buf->allocations, buf->alloc_max_count * sizeof(char**));
             free(buf->allocations);
 
             buf->alloc_max_count = max_count;
@@ -91,6 +91,7 @@ int MqttBuffer_Append(struct MqttBuffer *buf, char *payload, uint32_t size, int 
 {
     const uint32_t bytes = own ? size : sizeof(struct MqttExtent);
 
+   
     struct MqttExtent *ext = MqttBuffer_AllocExtent(buf, bytes);
     if(NULL == ext) {
         return MQTTERR_OUTOFMEMORY;
