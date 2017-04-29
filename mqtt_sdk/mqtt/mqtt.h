@@ -11,7 +11,7 @@ extern "C" {
 #include "config.h"
 #include "mqtt_buffer.h"
 
-#define MQTTSAVEDPTOPICNAME "Sdp"
+#define MQTTSAVEDPTOPICNAME "$dp"
 
 /** MQTT错误码 */
 enum MqttError {

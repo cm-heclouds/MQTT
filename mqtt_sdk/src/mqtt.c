@@ -2045,7 +2045,7 @@ int Mqtt_PackDataPointByString(struct MqttBuffer *buf, uint16_t pkt_id, int64_t 
         char payload[payload_size];
         
         //填充payload
-        payload[0] = kTypeString & 0xFF;
+        payload[0] = type & 0xFF;
         payload[1] = (size>>8)&0xFF;
         payload[2] = size&0xFF;
         memcpy(payload+3, str, size);
