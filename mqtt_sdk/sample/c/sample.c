@@ -441,7 +441,7 @@ static int MqttSample_CmdPublishBin(struct MqttSampleContext *ctx, int qos){
 }
 
 static int MqttSample_CmdPublishSimpleJsonWithoutTime(struct MqttSampleContext *ctx, int qos){
-    const char *str = "{\¡°temperature\¡±:{\¡°2015-03-22 22:31:12\¡±:22.5}}";
+    const char *str = "{\"temperature\":22.5}";
     uint32_t size = strlen(str);
     int retain = 0;
     int own = 1;
@@ -454,7 +454,7 @@ static int MqttSample_CmdPublishSimpleJsonWithoutTime(struct MqttSampleContext *
 }
 
 static int MqttSample_CmdPublishSimpleJsonWithTime(struct MqttSampleContext *ctx, int qos){
-    const char *str = "{\¡°temperature\¡±:{\¡°2015-03-22 22:31:12\¡±:22.5}}";
+    const char *str =   "{\"temperature\":{\"2015-03-22 22:31:12\":22.5}}";
     uint32_t size = strlen(str);
     int retain = 0;
     int own = 1;
