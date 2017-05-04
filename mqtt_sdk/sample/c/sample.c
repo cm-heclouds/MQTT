@@ -24,6 +24,17 @@
 #include <getopt.h>
 
 
+#define  WRITEUINT16(A,V) \
+{\
+    *(A) = (uint8_t)(((V) & 0xFF00) >> 8);      \
+    *(A+1) = (uint8_t)((V) & 0x00FF);              \
+}
+#define  WRITEFLOAT(A, V) \
+{\
+    memcpy(A, &V, sizeof(float));\
+}
+
+
 struct MqttSampleContext
 {
     int epfd;
@@ -181,7 +192,7 @@ static int MqttSample_SendPkt(void *arg, const struct iovec *iov, int iovcnt)
     for(i=0; i<iovcnt; ++i){
         char *pkg = (char*)iov[i].iov_base;
         if(iov[i].iov_len > 1024){
-            printf("length:%d\n", iov[i].iov_len);
+            printf("length:%d\n", (int)iov[i].iov_len);
         }else{
             for(j=0; j<iov[i].iov_len; ++j)
                 printf("%02X ", pkg[j]&0xFF);
@@ -487,28 +498,27 @@ static int MqttSample_CmdPublishStringWithTime(struct MqttSampleContext *ctx, in
     int err = MQTTERR_NOERROR;
     
     MqttBuffer_Init(ctx->mqttbuf);
-    err = Mqtt_PackDataPointByString(ctx->mqttbuf, g_pkt_id++, 0, kTypeStringWithTime, str, size, qos, retain, own);
+    err = Mqtt_PackDataPointByString(ctx->mqttbuf, g_pkt_id++, 0, PAYLOADWITHOUTTIME(kTypeStringWithTime), str, size, qos, retain, own);
     
     return err;
 }
 
-
 static int MqttSample_CmdPublishFloat(struct MqttSampleContext *ctx, int  qos){
-    int err = 0;
-    float dp[2] = {34.0, -20.3};
-    float dp2 = 100.7;
-    struct    MqttFloatDps pds[2];
+    int retain = 0;
+    int own = 1;
+    int err = MQTTERR_NOERROR;
+    float dps[2] = {34.0, -20.3};
+    int16_t ds_name = 0;
+    char float_points[1024];
 
     MqttBuffer_Init(ctx->mqttbuf);
 
-    pds[0].ds_id = 1;
-    pds[0].ds_numb = 2;
-    pds[0].dps = dp;
-    pds[1].ds_id = 2;
-    pds[1].ds_numb = 1;
-    pds[1].dps = &dp2;
+    WRITEUINT16(float_points, ds_name);
+    WRITEUINT16(float_points+2, 2);
+    WRITEFLOAT(float_points+4, dps[0]);
+    WRITEFLOAT(float_points+8, dps[1]);
 
-    err = Mqtt_PackDataPointByFloat(ctx->mqttbuf,1, 0, pds, 2, qos, 0, 0);
+    err = Mqtt_PackDataPointByString(ctx->mqttbuf, g_pkt_id++, 0, PAYLOADWITHTIME(kTypeFloat), float_points, 12, qos, retain, own);
     if(err) {
         printf("assemble publish package(type=Float,Qos= %d) error\n", qos);
     }

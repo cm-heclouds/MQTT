@@ -2035,55 +2035,84 @@ int Mqtt_PackDataPointFinish(struct MqttBuffer *buf)
 int Mqtt_PackDataPointByString(struct MqttBuffer *buf, uint16_t pkt_id, int64_t ts,
                                int32_t type, const char *str, uint32_t size,
                                enum MqttQosLevel qos, int retain, int own){
+    char *payload = NULL;
+    int32_t payload_size = 0;
+    struct tm *t = NULL;
+    int64_t now;
+    time_t tt;
+    int32_t offset = 0;
+    int ret = 0;
+
     if(kTypeFullJson == type ||
        kTypeBin == type ||
        kTypeSimpleJsonWithoutTime == type ||
        kTypeSimpleJsonWithTime == type ||
        kTypeString == type){
         //payload total len
-        int32_t payload_size = 1 + 2 + size;
-        char payload[payload_size];
-        
+        payload_size = 1 + 2 + size;
+        payload = (char*)malloc(payload_size);
+        if(NULL == payload){
+            return MQTTERR_OUTOFMEMORY;
+        }
+
         //填充payload
         payload[0] = type & 0xFF;
         payload[1] = (size>>8)&0xFF;
         payload[2] = size&0xFF;
         memcpy(payload+3, str, size);
 
-        return Mqtt_PackPublishPkt(buf, pkt_id, MQTTSAVEDPTOPICNAME, payload, payload_size, qos, retain, own);
-    }else if(kTypeStringWithTime == type){
-        
-        int32_t payload_size = 1 + 6 + 2 + size;
-        char payload[payload_size];
+        ret = Mqtt_PackPublishPkt(buf, pkt_id, MQTTSAVEDPTOPICNAME, payload, payload_size, qos, retain, own);
+    }else if(kTypeStringWithTime == (type & 0x7F) ||
+             kTypeFloat == (type & 0x7F)){
+        if(kTypeFloat == (type & 0x7F)){
+            payload_size = 1 + size;
+        }else{
+            payload_size = 1 + 2 + size;
+        }
+        if(type & 0x80){
+            payload_size += 6;
+        }
+        payload = (char*)malloc(payload_size);
+        if(NULL == payload){
+            return MQTTERR_OUTOFMEMORY;
+        }
 
-        struct tm *t = NULL;
-        int64_t now;
-        time_t tt;
         //填充payload
-        payload[0] = kTypeStringWithTime & 0xFF;
+        payload[0] = type & 0xFF;
         if(ts <= 0){
             time(&now);
-        } 
+        }
         tt = (time_t)now;
         t = gmtime(&tt);
         if(!t) {
+            free(payload);
             return MQTTERR_INTERNAL;
         }
-        payload[1] = (t->tm_year+1900)%100;
-        payload[2] = (t->tm_mon+1)&0xFF;
-        payload[3] = (t->tm_mday)&0xFF;
-        payload[4] = (t->tm_hour)&0xFF;
-        payload[5] = (t->tm_min)&0xFF;
-        payload[6] = (t->tm_sec)&0xFF;
-        payload[7] = (size>>8)&0xFF;
-        payload[8] = size&0xFF;
-        memcpy(payload+9, str, size);
-        
-        return Mqtt_PackPublishPkt(buf, pkt_id, MQTTSAVEDPTOPICNAME, payload, payload_size, qos, retain, own);
+        if(type & 0x80){
+            payload[1] = (t->tm_year+1900)%100;
+            payload[2] = (t->tm_mon+1)&0xFF;
+            payload[3] = (t->tm_mday)&0xFF;
+            payload[4] = (t->tm_hour)&0xFF;
+            payload[5] = (t->tm_min)&0xFF;
+            payload[6] = (t->tm_sec)&0xFF;
+            offset = 6;
+        }
+        else{
+            offset = 0;
+        }
+        if(kTypeStringWithTime == (type & 0x7F)){
+            payload[offset + 1] = (size>>8)&0xFF;
+            payload[offset + 2] = size&0xFF;
+            offset += 2;
+        }
+        memcpy(payload + offset + 1, str, size);
+        ret = Mqtt_PackPublishPkt(buf, pkt_id, MQTTSAVEDPTOPICNAME, payload, payload_size, qos, retain, own);
     }else{
         return MQTTERR_INVALID_PARAMETER;
     }
 
+    free(payload);
+    return ret;
 }
 
 
@@ -2132,116 +2161,6 @@ int Mqtt_PackDataPointByBinary(struct MqttBuffer *buf, uint16_t pkt_id, const ch
     return ret;
 }
 
-
-
-/*
-{
-    int err, pack_time;
-    struct MqttExtent *header_ext, *binary_ext;
-    size_t dsid_len, desc_len, header_len;
-    char *cursor;
-
-    if(buf->first_ext || !dsid || !bin || (0 == size)) {
-        return MQTTERR_INVALID_PARAMETER;
-    }
-
-    if(save) {
-        err = Mqtt_PackPublishPkt(buf, pkt_id, "$SAVEDATA", NULL, 0, qos, retain, 0);
-    }
-    else {
-        err = Mqtt_PackPublishPkt(buf, pkt_id, "$PASSDATA", NULL, 0, qos, retain, 0);
-    }
-
-    if(err != MQTTERR_NOERROR) {
-        return err;
-    }
-
-    dsid_len = strlen(dsid);
-    header_len = dsid_len + 2 + 1; // 2 bytes for the length of the header, 1 byte for type
-
-    if(Mqtt_CheckUtf8(dsid, dsid_len) != dsid_len) {
-        return MQTTERR_NOT_UTF8;
-    }
-
-    pack_time = 0;
-    desc_len = 0;
-    if(desc) {
-        desc_len = strlen(desc);
-        header_len += desc_len + 1; // 1 byte for privous split ','
-
-        if(Mqtt_CheckUtf8(desc, desc_len) != desc_len) {
-            return MQTTERR_NOT_UTF8;
-        }
-
-        pack_time = 1;
-    }
-
-    if(time > 0) {
-        pack_time = 1;
-        header_len += FORMAT_TIME_STRING_SIZE + 1; // 1 byte for privous split ','
-    }
-    else if(pack_time){
-        header_len += 1;
-    }
-
-    header_len += 4; // 4 bytes is the length of the binary
-
-    header_ext = MqttBuffer_AllocExtent(buf, header_len);
-    if(!header_ext) {
-        return MQTTERR_OUTOFMEMORY;
-    }
-
-    cursor = header_ext->payload;
-    *(cursor++) = MQTT_DPTYPE_BINARY;
-    Mqtt_WB16(header_len - 7, cursor);
-    cursor += 2;
-    memcpy(cursor, dsid, dsid_len);
-    cursor += dsid_len;
-
-    if(pack_time) {
-        *(cursor++) = ',';
-        if(time > 0) {
-            Mqtt_FormatTime(time, cursor);
-            cursor += FORMAT_TIME_STRING_SIZE;
-        }
-    }
-
-    if(desc) {
-        *(cursor++) = ',';
-        memcpy(cursor, desc, desc_len);
-        cursor += desc_len;
-    }
-
-    Mqtt_WB32(size, cursor);
-
-    if(own) {
-        binary_ext = MqttBuffer_AllocExtent(buf, size);
-        if(!binary_ext) {
-            return MQTTERR_OUTOFMEMORY;
-        }
-
-        memcpy(binary_ext->payload, bin, size);
-    }
-    else {
-        binary_ext = MqttBuffer_AllocExtent(buf, 0);
-        if(!binary_ext) {
-            return MQTTERR_OUTOFMEMORY;
-        }
-
-        binary_ext->payload = (char*)bin;
-        binary_ext->len = (uint32_t)size;
-    }
-
-    err = Mqtt_AppendLength(buf, header_len + size);
-    if(MQTTERR_NOERROR != err) {
-        return err;
-    }
-
-    MqttBuffer_AppendExtent(buf, header_ext);
-    MqttBuffer_AppendExtent(buf, binary_ext);
-    return MQTTERR_NOERROR;
-    }
-*/
 
 int Mqtt_AppendPayload(struct MqttBuffer *buf, int64_t* ts, int32_t type, const char* data, size_t len){
     struct MqttExtent *ext;
@@ -2332,77 +2251,3 @@ int Mqtt_AppendPayload(struct MqttBuffer *buf, int64_t* ts, int32_t type, const 
 
 }
 
-int Mqtt_PackDataPointByFloat(struct MqttBuffer *buf, uint16_t pkt_id, int64_t* ts,
-                              struct MqttFloatDps *pds, uint32_t size,
-                              enum MqttQosLevel qos, int retain, int own){
-
-    int32_t payload_size = 0;
-    char *payload = NULL;
-
-    struct tm *t;
-    size_t i = 0;
-    uint32_t float_dp_offset = 0;
-
-//check parameter
-    for(i=0;i<size;++i){
-        if(NULL == (pds+i)){
-            return MQTTERR_INVALID_PARAMETER;
-        }
-    }
-
-//计算payload的总长度
-    payload_size = 1 + 6;
-    for(i=0;i<size;++i){
-        int16_t numb = (pds+i)->ds_numb;
-        payload_size += 4 * numb;
-    }
-    payload = malloc(payload_size);
-    if(NULL == payload){
-        return MQTTERR_OUTOFMEMORY;
-    }
-
-    //填充payload
-    if(NULL != ts){
-        payload[0] = (kTypeFloat & 0xFF)| 0x80;
-        time(ts);
-        time_t tt = (time_t) (*ts);
-        t = gmtime(&tt);
-        if(!t) {
-            return MQTTERR_INTERNAL;
-        }
-        payload[1] = (t->tm_year+1900)%100;
-        payload[2] = (t->tm_mon+1)&0xFF;
-        payload[3] = (t->tm_mday)&0xFF;
-        payload[4] = (t->tm_hour)&0xFF;
-        payload[5] = (t->tm_min)&0xFF;
-        payload[6] = (t->tm_sec)&0xFF;
-        float_dp_offset = 7;
-            
-    }else{
-        payload[0] = kTypeFloat & 0xFF;
-        float_dp_offset = 1;
-    }
-    for(i=0;i<size;++i){
-        struct MqttFloatDps *tmp_dp = pds + i;
-        int32_t one_dps_size = 2 + 2 + 4*(tmp_dp->ds_numb);
-
-        payload[float_dp_offset] = (tmp_dp -> ds_id)>>8 & 0xFF;
-        payload[float_dp_offset+1] = (tmp_dp -> ds_id) & 0xFF;
-        payload[float_dp_offset+2] = (tmp_dp -> ds_numb)>>8 & 0xFF;
-        payload[float_dp_offset+3] = (tmp_dp -> ds_numb) & 0xFF;
-            
-            
-        for(i=0;i<tmp_dp->ds_numb;++i){
-            const void *p_dp = (const void*)(tmp_dp->dps + i);
-            memcpy( payload + float_dp_offset + 4 + 4*i,
-                    p_dp,4);
-        }
-
-        float_dp_offset += one_dps_size;
-    }
-        
-    return Mqtt_PackPublishPkt(buf, pkt_id, MQTTSAVEDPTOPICNAME, payload, payload_size, qos, retain, own);
-
-    free(payload);
-
-}
