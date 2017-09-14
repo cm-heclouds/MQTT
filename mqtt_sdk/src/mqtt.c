@@ -2158,6 +2158,7 @@ int Mqtt_PackDataPointByBinary(struct MqttBuffer *buf, uint16_t pkt_id, const ch
     memcpy(payload + bin_offset + 4,
            bin, size);
     ret = Mqtt_PackPublishPkt(buf, pkt_id, MQTTSAVEDPTOPICNAME, payload, payload_size, qos, retain, own);
+    free(ds_info_str);
     return ret;
 }
 
