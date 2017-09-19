@@ -73,7 +73,7 @@ enum MqttConnectFlag {
 
 /** 连接确认标志位 */
 enum MqttConnAckFlag {
-    MQTT_CONNACK_SP = 0x01 /**< 会话建立 */
+    MQTT_CONNACK_SP = 0x01 /**< 保留原来会话，以原会话登陆 */
 };
 
 /** MQTT 返回码 */
